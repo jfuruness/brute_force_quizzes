@@ -20,7 +20,7 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python :: 3'],
     entry_points={
-        'console_scripts': 'lib_assistant = lib_assistant.__main__:main'},
+        'console_scripts': 'lib_brute_force_quizzes = lib_brute_force_quizzes.__main__:main'},
     setup_requires=['pytest-runner'],
     tests_require=['pytest'],
 )

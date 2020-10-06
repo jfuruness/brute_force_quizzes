@@ -54,22 +54,32 @@ class Browser:
     def get(self, url):
         self.browser.get(url)
 
-    def get_el(self, _id=None, name=None, tag=None, xpath=None, plural=False):
+    def get_el(self, _id=None, name=None, tag=None, xpath=None, _class=None, plural=False, start_node=None):
+        if start_node is None:
+            start_node = self.browser
         try:
             if _id:
-                return self.browser.find_element_by_id(_id)
+                return start_node.find_element_by_id(_id)
             if name:
-                return self.browser.find_element_by_name(name)
+                if plural:
+                    return start_node.find_elements_by_name(name)
+                else:
+                    return start_node.find_element_by_name(name)
             if tag:
                 if plural:
-                    return self.browser.find_elements_by_tag_name(tag)
+                    return start_node.find_elements_by_tag_name(tag)
                 else:
-                    return self.browser.find_element_by_tag_name(tag)
+                    return start_node.find_element_by_tag_name(tag)
             if xpath:
                 if plural:
-                    return self.browser.find_elements_by_xpath(xpath)
+                    return start_node.find_elements_by_xpath(xpath)
                 else:
-                    return self.browser.find_element_by_xpath(xpath)
+                    return start_node.find_element_by_xpath(xpath)
+            if _class:
+                if plural:
+                    return start_node.find_elements_by_class_name(_class)
+                else:
+                    return start_node.find_element_by_class_name(_class)
         except Exception as e:
             print(str(_id) + str(name) + str(tag) + str(xpath))
             print(e)
