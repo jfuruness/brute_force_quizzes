@@ -42,6 +42,7 @@ class Brute_Force_Quizzes:
         for module in modules:
             for quiz_num in module.quizzes:
                 for i in range(20):
+                    print(f"Round {i}")
                     newtry = False
                     if os.path.exists(self.q_dict_path):
                         try:
