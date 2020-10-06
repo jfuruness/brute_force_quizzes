@@ -19,6 +19,7 @@ from .browser import Browser, Side
 class Module:
     def __init__(self, init_num, quizzes: list):
         self.init_num = init_num
+        self.num = str(init_num)
         self.quizzes = quizzes
 
 class Brute_Force_Quizzes:
@@ -35,6 +36,9 @@ class Brute_Force_Quizzes:
         quizzes_list = [list(range(4, 9)),
                         list(range(4, 14)),
                         list(range(4, 8))]
+#        modules_list = list(range(15, 18))
+#        quizzes_list = [list(range(4, 14)),
+#                        list(range(6, 8))]
         firsttry = True
         modules = []
         for module_num, quizzes_list in zip(modules_list, quizzes_list):
@@ -52,6 +56,10 @@ class Brute_Force_Quizzes:
                             q_dict = {}
                     else:
                         q_dict = {}
+                    if q_dict.get(module.num) is None:
+                        q_dict[module.num] = {}
+                    if q_dict[module.num].get(str(quiz_num)) is None:
+                        q_dict[module.num][str(quiz_num)] = {}
                     self.thirty_five_hundred(firsttry=firsttry)
                     firsttry = False
                     self.scroll_down()
@@ -81,17 +89,20 @@ class Brute_Force_Quizzes:
                             a_button_nums.append(int(button_el.text.replace("_", "")))
                         # Get all p's
                         answers = []
-                        for p in self.left_browser.get_el(tag="p",
+                        for p in self.left_browser.get_el(tag="label",
                                                           start_node=table,
                                                           plural=True):
-                            answers.append(p.text)
-                        if q_dict.get(q) is None:
-                            q_dict[q] = {}
+                            #input("HERE")
+                            #input(p.get_attribute("innerText"))
+                            answers.append(p.get_attribute("innerText"))
+                        if q_dict[module.num][str(quiz_num)].get(q) is None:
+                            #input(q_dict[module.num][str(quiz_num)].get(q))
+                            q_dict[module.num][str(quiz_num)][q] = {}
                         click_num = a_button_nums[0]
                         answer_to_click = answers[0]
                         for button_num, a in zip(a_button_nums, answers):
-                            if q_dict[q].get(a) is None:
-                                q_dict[q][a] = None
+                            if q_dict[module.num][str(quiz_num)][q].get(a) is None:
+                                q_dict[module.num][str(quiz_num)][q][a] = None
                                 click_num = button_num
                                 answer_to_click = a
                                 newtry = True
@@ -114,15 +125,15 @@ class Brute_Force_Quizzes:
                         for p in self.left_browser.get_el(tag="p", start_node=detail, plural=True):
                             if addme==True:  # one more after selected answers means feedback
                                 finaladd=True
-                            if p.text in q_dict[q]:
+                            if p.text in q_dict[module.num][str(quiz_num)][q]:
                                 # After this there should be feedback, it's the last answer
                                 addme=True
                         if finaladd:
                             feedback.append(p.text)
-                            q_dict[q][a] = p.text
+                            q_dict[module.num][str(quiz_num)][q][a] = p.text
                         else:
                             feedback.append("WRONG")
-                            q_dict[q][a] = "WRONG"
+                            q_dict[module.num][str(quiz_num)][q][a] = "WRONG"
 
                     # DUMP JSON
                     with open(self.q_dict_path, "w") as f:
