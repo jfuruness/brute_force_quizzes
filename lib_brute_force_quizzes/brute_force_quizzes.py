@@ -51,7 +51,6 @@ class Brute_Force_Quizzes:
 
     def run(self):
         print("Running")
-        print("NOTE: This assumes you've taken them all")
         self.thirty_five_hundred(True)
         self.modules = self.get_modules()
         self.get_module_quizzes()
@@ -177,15 +176,22 @@ class Brute_Force_Quizzes:
 
     def get_feedback(self, questions):
         feedback_els = self.left_browser.get_el(_class="details", plural=True)
+        # A little part of me just died
+        counter = 1
         for feedback_el, question in zip(feedback_els, questions):
-            last_row =  self.focused_browser.get_el(tag="tr",
-                                                    plural=True,
-                                                    start_node=feedback_el)[-1]
-            text = last_row.get_attribute("innerText")
-            if "Answer Feedback" in text:
-                question.feedback = text.replace("Answer Feedback", "").strip()
+            gif = self.focused_browser.get_el(_id=f"gs_q{counter}")
+            if "Correct" == gif.get_attribute("title"):
+                question.feedback = "CORRECT: "
             else:
                 question.feedback = "WRONG"
+            # Honestly fuck you
+            counter += 1
+            last_row = self.focused_browser.get_el(tag="tr",
+                                                   plural=True,
+                                                   start_node=feedback_el)[-1]
+            text = last_row.get_attribute("innerText")
+            if "Answer Feedback" in text:
+                question.feedback += text.replace("Answer Feedback", "").replace("Correct", "").strip()
 
     def save_feedback(self, questions):
         for question in questions:
