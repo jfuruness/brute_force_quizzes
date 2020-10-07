@@ -274,7 +274,7 @@ class Browser:
 #        self.attempt_to_click()
 
         if "pdf" not in self.url:
-            print("trying javascript scroll")
+            #print("trying javascript scroll")
             self.javascript_scroll(key, page)
             if "--test" in sys.argv:
                 time.sleep(3)
@@ -343,7 +343,7 @@ class Browser:
                 move = -500
             else:
                 move = -200
-        print("Executing window javascript scroll")
+        #print("Executing window javascript scroll")
 #        scroll_hieght = self.browser.execute_script("return window.pageYOffset")
         #self.browser.execute_script("window.scroll(" + f"{move},0)")
         self.browser.execute_script("window.scroll({top:" + f"window.pageYOffset + {move}" + ",left:0,behavior: 'smooth'})")

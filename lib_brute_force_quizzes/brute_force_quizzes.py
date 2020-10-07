@@ -16,11 +16,26 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from .browser import Browser, Side
 
-class Module:
-    def __init__(self, init_num, quizzes: list):
-        self.init_num = init_num
-        self.num = str(init_num)
-        self.quizzes = quizzes
+class El_w_link:
+    def __init__(self, el, parent):
+        self.text = el.text
+        self.link = parent.get_attribute("href")
+
+
+class Module(El_w_link):
+    pass
+class Quiz(El_w_link):
+    pass
+
+class Question:
+    def __init__(self, el, text):
+        self.el = el
+        self.text = text
+
+class Answer:
+    def __init__(self, num, text):
+        self.num = num
+        self.text = text
 
 class Brute_Force_Quizzes:
     q_dict_path = "/tmp/quizz.json"
@@ -28,118 +43,163 @@ class Brute_Force_Quizzes:
     def __init__(self):
         self.right_browser = None
         self.left_browser = None
+        try:
+            with open(self.q_dict_path, "r+") as f:
+                self.q_dict = json.loads(f.read())
+        except FileNotFoundError:
+            self.q_dict = {}
 
     def run(self):
         print("Running")
         print("NOTE: This assumes you've taken them all")
-        modules_list = list(range(14, 18))
-        quizzes_list = [list(range(4, 9)),
-                        list(range(4, 14)),
-                        list(range(4, 8))]
-#        modules_list = list(range(15, 18))
-#        quizzes_list = [list(range(4, 14)),
-#                        list(range(6, 8))]
-        firsttry = True
-        modules = []
-        for module_num, quizzes_list in zip(modules_list, quizzes_list):
-            modules.append(Module(module_num, quizzes_list))
-        for module in modules:
-            for quiz_num in module.quizzes:
-                for i in range(20):
-                    print(f"Round {i}")
-                    newtry = False
-                    if os.path.exists(self.q_dict_path):
-                        try:
-                            with open(self.q_dict_path, "r") as f:
-                                q_dict = json.load(f)
-                        except json.decoder.JSONDecodeError:
-                            q_dict = {}
-                    else:
-                        q_dict = {}
-                    if q_dict.get(module.num) is None:
-                        q_dict[module.num] = {}
-                    if q_dict[module.num].get(str(quiz_num)) is None:
-                        q_dict[module.num][str(quiz_num)] = {}
-                    self.thirty_five_hundred(firsttry=firsttry)
-                    firsttry = False
-                    self.scroll_down()
-                    self.click(module.init_num)
-                    self.click(7)  # Quizzes
-                    self.click(quiz_num)
-                    self.click(5)  # Begin
-                    try:
-                        self.click(7)  # Start a new submission
-                    except selenium.common.exceptions.UnexpectedAlertPresentException:
-                        print("Already started new")
-                    self.accept_pop_up()
-                    clicked_nums = []
-                    qs = []
-                    clicked_answers = []
-                    for q_el in self.left_browser.get_el(_class="takeQuestionDiv ", plural=True):
-                        q = self.left_browser.get_el(tag="p", start_node=q_el)
-                        parent = self.left_browser.get_el(xpath="..", start_node=q)
-                        q = parent.get_attribute("innerText")
-                        # Get table
-                        table = self.left_browser.get_el(tag="table", start_node=q_el)
-                        # Within table, get all els with name of furuness and get text (those are the numbers once you replace the _
-                        a_button_nums = []
-                        for button_el in self.left_browser.get_el(name="furuness",
-                                                                  start_node=table,
-                                                                  plural=True):
-                            a_button_nums.append(int(button_el.text.replace("_", "")))
-                        # Get all p's
-                        answers = []
-                        for p in self.left_browser.get_el(tag="label",
-                                                          start_node=table,
-                                                          plural=True):
-                            #input("HERE")
-                            #input(p.get_attribute("innerText"))
-                            answers.append(p.get_attribute("innerText"))
-                        if q_dict[module.num][str(quiz_num)].get(q) is None:
-                            #input(q_dict[module.num][str(quiz_num)].get(q))
-                            q_dict[module.num][str(quiz_num)][q] = {}
-                        click_num = a_button_nums[0]
-                        answer_to_click = answers[0]
-                        for button_num, a in zip(a_button_nums, answers):
-                            if q_dict[module.num][str(quiz_num)][q].get(a) is None:
-                                q_dict[module.num][str(quiz_num)][q][a] = None
-                                click_num = button_num
-                                answer_to_click = a
-                                newtry = True
-                        clicked_nums.append(click_num)
-                        qs.append(q)
-                        clicked_answers.append(answer_to_click)
-                    for num in clicked_nums:
-                        self.click_radio(num)
-                    pprint(q_dict)
-                    self.click(6)  # Submit
-                    time.sleep(1)
-                    self.accept_pop_up()
-                    self.click(5)  # View results
-                    feedback = []
-                    # For every div with a class of details, get the last paragraphs text
-                    details = list(self.left_browser.get_el(_class="details", plural=True))
-                    for detail, q, a in zip(details, qs, clicked_answers):
-                        addme = False
-                        finaladd=False
-                        for p in self.left_browser.get_el(tag="p", start_node=detail, plural=True):
-                            if addme==True:  # one more after selected answers means feedback
-                                finaladd=True
-                            if p.text in q_dict[module.num][str(quiz_num)][q]:
-                                # After this there should be feedback, it's the last answer
-                                addme=True
-                        if finaladd:
-                            feedback.append(p.text)
-                            q_dict[module.num][str(quiz_num)][q][a] = p.text
-                        else:
-                            feedback.append("WRONG")
-                            q_dict[module.num][str(quiz_num)][q][a] = "WRONG"
+        self.thirty_five_hundred(True)
+        self.modules = self.get_modules()
+        self.get_module_quizzes()
+        for module in self.modules:
+            if len(module.quizzes) > 0:
+                self.q_dict[module.text] = self.q_dict.get(module.text, {})
+                for quiz in module.quizzes:
+                    self.q_dict[module.text][quiz.text] =\
+                        self.q_dict[module.text].get(quiz.text, {})
+                    self.cur_q = self.q_dict[module.text][quiz.text]
+                    for _ in range(20):
+                        self.take_quiz(quiz)
 
-                    # DUMP JSON
-                    with open(self.q_dict_path, "w") as f:
-                        f.write(json.dumps(q_dict))
-                    pprint(q_dict)
-#####################################################################
+    def get_module_quizzes(self):
+        for module in self.modules:
+            print(module.text)
+            self.focused_browser.get(module.link)
+            try:
+                self.click_link_text("Lecture Quizzes")
+                module.quizzes = self.get_quizzes()
+            # No quizzes in this sectin
+            except AttributeError as e:
+                module.quizzes = []
+        
+    def get_modules(self):
+        return [Module(el, parent) for el, parent
+                in zip(*self.get_el_w_link("Module"))]
+
+    def get_quizzes(self):
+        return [Quiz(el, parent) for el, parent
+                in zip(*self.get_el_w_link("Q"))
+                if parent.get_attribute("href") is not None]
+
+    def get_el_w_link(self, text):
+        els = self.focused_browser.get_el(xpath=f"//span[contains(text(),'{text}')]",
+                                           plural=True)
+        parents = [self.focused_browser.get_el(xpath="..", start_node=el)
+                   for el in els]
+        return els, parents
+            
+    def click_link_text(self, text):
+        """Gets span within href and gets url and shows links"""
+
+        el = self.focused_browser.get_el(xpath=f"//span[contains(text(),'{text}')]")
+        parent = self.focused_browser.get_el(xpath="..", start_node=el)
+        self.focused_browser.get(parent.get_attribute("href"))
+        self.show_links()
+        return
+
+    def take_quiz(self, quiz):
+        self.focused_browser.get(quiz.link)
+        self.start_quiz(quiz)
+        questions = self.get_questions()
+        for question in questions:
+            self.get_answer_objects(question)
+            self.select_unchosen_answer(question)
+        self.submit_quiz()
+        self.get_feedback(questions)
+        self.save_feedback(questions)
+
+    def start_quiz(self, quiz):
+        try:
+            self.focused_browser.get_el(name="bottom_Begin").click()
+        except AttributeError:
+            self.focused_browser.get_el(name="bottom_Continue").click()
+        start_new = self.focused_browser.get_el(xpath="//a[contains(text(),'Start New')]")
+        if start_new is not None:
+            start_new.click()
+        self.show_links()
+
+    def get_questions(self):
+        questions = []
+        for q_el in self.left_browser.get_el(_class="takeQuestionDiv ",
+                                             plural=True):
+            q = self.left_browser.get_el(tag="p", start_node=q_el)
+            parent = self.left_browser.get_el(xpath="..", start_node=q)
+            q = parent.get_attribute("innerText")
+            questions.append(Question(q_el, parent.get_attribute("innerText")))
+        return questions
+
+    def get_answer_objects(self, question):
+        # Get table
+        table = self.left_browser.get_el(tag="table", start_node=question.el)
+        # Within table, get all els with name of furuness 
+        # get text (those are the numbers once you replace the _
+        a_button_nums = self.get_button_nums(table)
+        answers = self.get_answers(table)
+        question.answers = [Answer(button_num, a) for button_num, a
+                            in zip(a_button_nums, answers)]
+
+    def get_button_nums(self, table):
+        a_button_nums = []
+        for button_el in self.left_browser.get_el(name="furuness",
+                                                  start_node=table,
+                                                  plural=True):
+            a_button_nums.append(int(button_el.text.replace("_", "")))
+        return a_button_nums
+
+    def get_answers(self, table):
+        # Get all p's
+        answers = []
+        for p in self.left_browser.get_el(tag="label",
+                                          start_node=table,
+                                          plural=True):
+            answers.append(p.get_attribute("innerText"))
+        return answers    
+
+    def select_unchosen_answer(self, question):
+        # Last one to reduce scrolling time
+        selected_answer = question.answers[-1].text
+        for answer, feedback in self.cur_q.get(question.text, {}).items():
+            if feedback is None:
+                selected_answer = answer
+        # Shame on you
+        question.selected_answer = [a for a in question.answers
+                                    if a.text == selected_answer][0]
+        self.click_radio(question.selected_answer.num)
+
+    def submit_quiz(self):
+        self.focused_browser.get_el(name="bottom_Save and Submit").click()
+        self.accept_pop_up()
+        self.focused_browser.get_el(xpath="//a[contains(text(),'OK')]").click()
+
+    def get_feedback(self, questions):
+        feedback_els = self.left_browser.get_el(_class="details", plural=True)
+        for feedback_el, question in zip(feedback_els, questions):
+            last_row =  self.focused_browser.get_el(tag="tr",
+                                                    plural=True,
+                                                    start_node=feedback_el)[-1]
+            text = last_row.get_attribute("innerText")
+            if "Answer Feedback" in text:
+                question.feedback = text.replace("Answer Feedback", "").strip()
+            else:
+                question.feedback = "WRONG"
+
+    def save_feedback(self, questions):
+        for question in questions:
+            self.cur_q[question.text] = self.cur_q.get(question.text, {})
+            cur = self.cur_q[question.text]
+            for answer in question.answers:
+                cur[answer.text] = cur.get(answer.text, None)
+            cur[question.selected_answer.text] = question.feedback
+        self.save_json()
+
+    def save_json(self):
+        # DUMP JSON
+        with open(self.q_dict_path, "w") as f:
+            f.write(json.dumps(self.q_dict))
 
     def refocus(self):
         self.focused_browser.refocus()
@@ -261,34 +321,26 @@ class Brute_Force_Quizzes:
         javascript_str = (f"""return document.evaluate("//*[@id='furuness_{num_str}']","""
                           """ document, null, XPathResult.FIRST_ORDERED_NODE_TYPE,"""
                           """ null).singleNodeValue.nextSibling;""")
-        try:
-            node = self.focused_browser.browser.execute_script(javascript_str)
-            self.focused_browser.browser.execute_script("arguments[0].scrollIntoView();", node)
-            self.focused_browser.wait(node.get_attribute("id"), By.ID)
-            tried = False
-            while True:
-                try:
+        node = self.focused_browser.browser.execute_script(javascript_str)
+        self.focused_browser.browser.execute_script("arguments[0].scrollIntoView();", node)
+        self.focused_browser.wait(node.get_attribute("id"), By.ID)
+
+        tried = False
+        for _ in range(2):
+            try:
+                node.click()
+                if node.is_selected():
+                    pass
+                else:
                     node.click()
-                    if node.is_selected():
-                        pass
-                    else:
-                        node.click()
-                    break
-                except selenium.common.exceptions.ElementClickInterceptedException:
-                    if tried:
-                        raise Exception("Fuck couldn't click")
-                    else:
-                        tried = True
-                        self.scroll_up()
-                        time.sleep(1)
-        except selenium.common.exceptions.JavascriptException as e:
-            # This is a button
-            if "nextSibling" in str(e):
-                javascript_str = (f"""document.evaluate("//*[@id='furuness_{num_str}']","""
-                          """ document, null, XPathResult.FIRST_ORDERED_NODE_TYPE,"""
-                          """ null).singleNodeValue.nextSibling;""")
-            input(e)
-            print(e)
+                break
+            except selenium.common.exceptions.ElementClickInterceptedException:
+                if tried:
+                    raise Exception("Fuck couldn't click")
+                else:
+                    tried = True
+                    self.scroll_up()
+                    time.sleep(1)
 
 
     def accept_pop_up(self, *args, printme=True):
