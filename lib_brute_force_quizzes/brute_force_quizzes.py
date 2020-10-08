@@ -54,6 +54,7 @@ class Brute_Force_Quizzes:
         self.thirty_five_hundred(True)
         self.modules = self.get_modules()
         self.get_module_quizzes()
+        self.focused_browser.browser.maximize_window()
         for module in self.modules:
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
@@ -61,8 +62,9 @@ class Brute_Force_Quizzes:
                     self.q_dict[module.text][quiz.text] =\
                         self.q_dict[module.text].get(quiz.text, {})
                     self.cur_q = self.q_dict[module.text][quiz.text]
-                    for _ in range(20):
-                        self.take_quiz(quiz)
+                    times_to_take = 20
+                    for i in range(times_to_take):
+                        self.take_quiz(quiz, i==(times_to_take - 1))
 
     def get_module_quizzes(self):
         for module in self.modules:
@@ -100,15 +102,18 @@ class Brute_Force_Quizzes:
         self.show_links()
         return
 
-    def take_quiz(self, quiz):
+    def take_quiz(self, quiz, last_time):
         self.focused_browser.get(quiz.link)
         self.start_quiz(quiz)
         questions = self.get_questions()
         for question in questions:
             self.get_answer_objects(question)
-            self.select_unchosen_answer(question)
+            self.select_unchosen_answer(question, last_time)
         self.submit_quiz()
         self.get_feedback(questions)
+        if last_time:
+            pass
+            # input("verify that you chose correctly")
         self.save_feedback(questions)
 
     def start_quiz(self, quiz):
@@ -158,12 +163,24 @@ class Brute_Force_Quizzes:
             answers.append(p.get_attribute("innerText"))
         return answers    
 
-    def select_unchosen_answer(self, question):
+    def select_unchosen_answer(self, question, last_time: bool):
+        """Selects last answer every time except for the last time
+
+        Done for speed, last answer requires less scrolling
+        But the last time through, get it correctly
+        """
+
         # Last one to reduce scrolling time
         selected_answer = question.answers[-1].text
+        known = True
         for answer, feedback in self.cur_q.get(question.text, {}).items():
             if feedback is None:
                 selected_answer = answer
+                known = False
+        if known is True and last_time is True:
+            # wtf r u doing
+            selected_answer = [k for k, v in self.cur_q[question.text].items()
+                               if "CORRECT" in v][0]
         # Shame on you
         question.selected_answer = [a for a in question.answers
                                     if a.text == selected_answer][0]
@@ -191,7 +208,9 @@ class Brute_Force_Quizzes:
                                                    start_node=feedback_el)[-1]
             text = last_row.get_attribute("innerText")
             if "Answer Feedback" in text:
-                question.feedback += text.replace("Answer Feedback", "").replace("Correct", "").strip()
+                question.feedback += text.replace("Answer Feedback",
+                                                  "").replace("Correct",
+                                                              "").strip()
 
     def save_feedback(self, questions):
         for question in questions:
