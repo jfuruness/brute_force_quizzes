@@ -40,7 +40,9 @@ class Answer:
 class Brute_Force_Quizzes:
     q_dict_path = "/tmp/quizz.json"
 
-    def __init__(self):
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
         self.right_browser = None
         self.left_browser = None
         try:
@@ -261,12 +263,13 @@ class Brute_Force_Quizzes:
                 self.left_browser.wait_click(_id="cas-login")
                 # Send in username
                 self.left_browser.wait_send_keys(_id="username",
-                                                 keys="chg16109")
-                # Send in password
-                with open("/tmp/password.txt", "r") as f:
-                    password = f.read().strip()
+                                                 keys=self.username)
+                if self.password is None:
+                    # Send in password
+                    with open("/tmp/password.txt", "r") as f:
+                        self.password = f.read().strip()
                 self.left_browser.wait_send_keys(_id="password",
-                                                 keys=password)
+                                                 keys=self.password)
                 # Click login
                 self.left_browser.get_el(name="submit").click()
             except Exception as e:

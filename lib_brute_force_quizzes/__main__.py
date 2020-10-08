@@ -28,6 +28,9 @@ def main():
     parser.add_argument("--brute_force", dest="brute_force", default=False, action='store_true')
     parser.add_argument("--debug", dest="debug", default=False, action='store_true')
     parser.add_argument("--test", dest="test", default=False, action='store_true')
+    parser.add_argument("--username", type=str, dest="username", default="chg16109")
+    parser.add_argument("--password", type=str, dest="password", default=None)
+
 
 
     args = parser.parse_args()
@@ -35,7 +38,7 @@ def main():
         config_logging(DEBUG)
 
     if args.brute_force:
-        Brute_Force_Quizzes().run()
+        Brute_Force_Quizzes(args.username, args.password).run()
 
 if __name__ == "__main__":
     main()
