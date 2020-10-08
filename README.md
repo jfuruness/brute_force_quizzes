@@ -1,6 +1,6 @@
 # Brute Force Quizzes (on Huskyct)
 
-I wrote this in five hours don't judge me
+I wrote this in five hours and don't have the time to fix it, sorry.
 
 ## Description
 * Logs in to huskyct
