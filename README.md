@@ -38,6 +38,6 @@ lib_brute_force_quizzes --brute_force --username myusernamehere --password mypas
 ```
 
 ## Developer notes:
-* Christina wanted this to get feedback for every answer to study. It should be ***VERY*** easy to modify this program to only take each quiz enough times to get it correct.
+* My gf wanted this to get feedback for every answer to study. It should be ***VERY*** easy to modify this program to only take each quiz enough times to get it correct.
 * Also, you can prob skip all quizzes you have already taken in the for loop very easily
 * I'm not going to make these changes because of time constraints on my end. Enjoy!
