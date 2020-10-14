@@ -423,6 +423,7 @@ class Brute_Force_Quizzes:
                                 f.write("  * " + self.strip(answer) + "\n")
                                 f.write("    * " + self.strip(feedback) + "\n")
                     f.write("\n")
+        # https://stackoverflow.com/a/55484165/8903959
         pdf_path = self.q_dict_path.replace("json", "pdf")
         check_call(f'pandoc {md_path} -o {pdf_path}', shell=True)
         short_pdf_path = pdf_path.replace(".pdf", "_short.pdf")
