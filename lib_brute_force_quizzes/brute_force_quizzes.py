@@ -61,7 +61,7 @@ class Brute_Force_Quizzes:
         self.focused_browser.browser.maximize_window()
         for mi, module in enumerate(self.modules):
             # Skip unnesseccary mods
-            if mi > 2:
+            if mi < 0:
                 continue
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
