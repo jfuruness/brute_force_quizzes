@@ -57,7 +57,9 @@ class Brute_Force_Quizzes:
         self.modules = self.get_modules()
         self.get_module_quizzes()
         self.focused_browser.browser.maximize_window()
-        for module in self.modules:
+        for mi, module in enumerate(self.modules):
+            if mi <= 4:
+                continue
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
                 for quiz in module.quizzes:
@@ -132,15 +134,16 @@ class Brute_Force_Quizzes:
         questions = []
         for q_el in self.left_browser.get_el(_class="takeQuestionDiv ",
                                              plural=True):
-            q = self.left_browser.get_el(tag="p", start_node=q_el)
-            parent = self.left_browser.get_el(xpath="..", start_node=q)
-            q = parent.get_attribute("innerText")
-            questions.append(Question(q_el, parent.get_attribute("innerText")))
+            q = self.left_browser.get_el(tag="legend", start_node=q_el)
+            questions.append(Question(q_el, q.get_attribute("innerText")))
         return questions
 
     def get_answer_objects(self, question):
         # Get table
-        table = self.left_browser.get_el(tag="table", start_node=question.el)
+        # Must be plural because sometimes q is a table
+        table = self.left_browser.get_el(tag="table",
+                                         start_node=question.el,
+                                         plural=True)[-1]
         # Within table, get all els with name of furuness 
         # get text (those are the numbers once you replace the _
         a_button_nums = self.get_button_nums(table)
@@ -172,6 +175,8 @@ class Brute_Force_Quizzes:
         But the last time through, get it correctly
         """
 
+        print(question.text)
+        print([x.text for x in question.answers])
         # Last one to reduce scrolling time
         selected_answer = question.answers[-1].text
         known = True
