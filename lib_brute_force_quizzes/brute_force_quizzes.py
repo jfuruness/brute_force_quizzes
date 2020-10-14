@@ -418,10 +418,10 @@ class Brute_Force_Quizzes:
                         f.write("* " + self.strip(question) + "\n")
                         for answer, feedback in answers_dict.items():
                             if feedback is None:
-                                f.write("  * No answer for this question???\n")
+                                f.write("    * No answer for this question???\n")
                             else:
-                                f.write("  * " + self.strip(answer) + "\n")
-                                f.write("    * " + self.strip(feedback) + "\n")
+                                f.write("    * " + self.strip(answer) + "\n")
+                                f.write("        * " + self.strip(feedback) + "\n")
                     f.write("\n")
         # https://stackoverflow.com/a/55484165/8903959
         pdf_path = self.q_dict_path.replace("json", "pdf")
