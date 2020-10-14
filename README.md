@@ -22,6 +22,7 @@ I wrote this in five hours and don't have the time to fix it, sorry.
 sudo apt-get update
 sudo apt-get upgrade
 sudo apt-get google-chrome-stable
+sudo apt-get install pandoc texlive-latex-base texlive-fonts-recommended texlive-extra-utils texlive-latex-extra
 ```
 NOTE: if you do not have google chrome installed, google: How to install google chrome linux
 Then follow the cmd line args for installing chrome.
@@ -36,6 +37,7 @@ NOTE: if you are getting chromedriver errors, that means the chromedriver automa
 ```
 lib_brute_force_quizzes --brute_force --username myusernamehere --password mypasswordhere
 ```
+You can find output pdf files in /tmp
 
 ## Developer notes:
 * My gf wanted this to get feedback for every answer to study. It should be ***VERY*** easy to modify this program to only take each quiz enough times to get it correct.

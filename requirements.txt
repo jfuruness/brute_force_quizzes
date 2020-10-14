@@ -1,2 +1,3 @@
 pynput
 selenium==3.141.0
+unidecode

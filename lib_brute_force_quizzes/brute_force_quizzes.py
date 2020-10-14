@@ -2,8 +2,10 @@ from datetime import datetime
 import os
 from pprint import pprint
 import json
+from subprocess import check_call
 import sys
 import time
+from unidecode import unidecode
 
 from pocketsphinx import LiveSpeech
 from pynput.keyboard import Key, Controller
@@ -38,7 +40,7 @@ class Answer:
         self.text = text
 
 class Brute_Force_Quizzes:
-    q_dict_path = "/tmp/quizz.json"
+    q_dict_path = "/tmp/quiz.json"
 
     def __init__(self, username, password):
         self.username = username
@@ -58,7 +60,8 @@ class Brute_Force_Quizzes:
         self.get_module_quizzes()
         self.focused_browser.browser.maximize_window()
         for mi, module in enumerate(self.modules):
-            if mi <= 4:
+            # Skip unnesseccary mods
+            if mi > 2:
                 continue
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
@@ -69,6 +72,7 @@ class Brute_Force_Quizzes:
                     times_to_take = 20
                     for i in range(times_to_take):
                         self.take_quiz(quiz, i==(times_to_take - 1))
+        self.format()
 
     def get_module_quizzes(self):
         for module in self.modules:
@@ -397,31 +401,39 @@ class Brute_Force_Quizzes:
 
         browser.scroll_down()
 
-    def page_up(self, *args, browser=None):
-        if not browser:
-            browser = self.focused_browser
-        browser.page_up()
-
-    def page_down(self, *args, browser=None):
-        if not browser:
-            browser = self.focused_browser
-        browser.page_down()
-
     def focus_left(self, *args):
         self.focused_browser = self.left_browser
         self.focused_browser.refocus()
 
-    def quit(self, *args):
-        for attr in ["left_browser", "right_browser"]:
-            try:
-                getattr(self, attr).browser.quit()
-                setattr(self, attr, None)
-            except AttributeError as e:
-                pass
+    def format(self):
+        with open(self.q_dict_path, "r") as f:
+            q = json.loads(f.read())
+        md_path = self.q_dict_path.replace("json", "md")
+        with open(md_path, "w") as f:
+            for module, quizzes in q.items():
+                f.write("# " + self.strip(module) + "\n")
+                for quiz_name, quiz_dict in quizzes.items():
+                    f.write("## " + self.strip(quiz_name) + "\n")
+                    for question, answers_dict in quiz_dict.items():
+                        f.write("* " + self.strip(question) + "\n")
+                        for answer, feedback in answers_dict.items():
+                            if feedback is None:
+                                f.write("  * No answer for this question???\n")
+                            else:
+                                f.write("  * " + self.strip(answer) + "\n")
+                                f.write("    * " + self.strip(feedback) + "\n")
+                    f.write("\n")
+        pdf_path = self.q_dict_path.replace("json", "pdf")
+        check_call(f'pandoc {md_path} -o {pdf_path}', shell=True)
+        short_pdf_path = pdf_path.replace(".pdf", "_short.pdf")
+        margins = "geometry:margin=1cm"
+        check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
+                   shell=True)
 
-    def turn_off(self, *args):
+    def strip(self, string):
         try:
-            self.quit()
-        except Exception as e:
-            print(e)
-        sys.exit(0)
+            for char in ["\t", "\n", "::"]:
+                string = string.replace(char, "")
+            return unidecode(string)
+        except AttributeError:
+            raise Exception(f"Couldn't format {string}")

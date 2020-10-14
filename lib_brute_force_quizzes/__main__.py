@@ -30,6 +30,8 @@ def main():
     parser.add_argument("--test", dest="test", default=False, action='store_true')
     parser.add_argument("--username", type=str, dest="username", default=None)
     parser.add_argument("--password", type=str, dest="password", default=None)
+    parser.add_argument("--format", dest="format", default=False, action="store_true")
+
 
 
 
@@ -39,6 +41,8 @@ def main():
 
     if args.brute_force:
         Brute_Force_Quizzes(args.username, args.password).run()
+    if args.format:
+        Brute_Force_Quizzes(args.username, args.password).format()
 
 if __name__ == "__main__":
     main()

@@ -12,7 +12,8 @@ setup(
     keywords=['Furuness', 'Assistant', 'Brute Force', 'Quizzes'],
     install_requires=[
         'pynput',
-        'selenium==3.141.0'
+        'selenium==3.141.0',
+        'unidecode'
     ],
     classifiers=[
         'Environment :: Console',
