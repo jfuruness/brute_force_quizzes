@@ -1,6 +1,7 @@
 from datetime import datetime
 import os
 from pprint import pprint
+import re
 import json
 from subprocess import check_call
 import sys
@@ -30,14 +31,25 @@ class Quiz(El_w_link):
     pass
 
 class Question:
-    def __init__(self, el, text):
+    def __init__(self, el, q_el, links):
         self.el = el
-        self.text = text
+        self.inner_text = q_el.get_attribute("innerHTML")
+        self.links = links
+
+    @property
+    def text(self):
+        link_text = " " + " ".join(str(x) for x in self.links)
+        return self.inner_text + link_text
 
 class Answer:
-    def __init__(self, num, text):
+    def __init__(self, num, text, link):
         self.num = num
-        self.text = text
+        self.inner_text = text
+        self.link = link
+
+    @property
+    def text(self):
+        return self.inner_text + " " + str(self.link)
 
 class Brute_Force_Quizzes:
     q_dict_path = "/tmp/quiz.json"
@@ -47,13 +59,30 @@ class Brute_Force_Quizzes:
         self.password = password
         self.right_browser = None
         self.left_browser = None
+        self.q_dict = {}
+        self.unanswered = []
         try:
-            with open(self.q_dict_path, "r+") as f:
+            with open(self.q_dict_path, "r") as f:
                 self.q_dict = json.loads(f.read())
         except FileNotFoundError:
-            self.q_dict = {}
+            pass
+        except json.decoder.JSONDecodeError:
+            os.remove(self.q_dict_path)
 
     def run(self):
+        self.e = None
+        try:
+            self._run()
+        except Exception as e:
+            print(e)
+            self.e = e
+        finally:
+            for unanswered_quiz in self.unanswered:
+                input("Unanswered, do by hand" + unanswered_quiz)
+            if self.e is not None:
+               raise self.e
+
+    def _run(self):
         print("Running")
         self.thirty_five_hundred(True)
         self.modules = self.get_modules()
@@ -61,11 +90,14 @@ class Brute_Force_Quizzes:
         self.focused_browser.browser.maximize_window()
         for mi, module in enumerate(self.modules):
             # Skip unnesseccary mods
-            if mi < 0:
+            if mi != 8:
                 continue
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
-                for quiz in module.quizzes:
+                for qi, quiz in enumerate(module.quizzes):
+                    # skip unnessecary mods
+                    if qi != 1:
+                        continue
                     self.q_dict[module.text][quiz.text] =\
                         self.q_dict[module.text].get(quiz.text, {})
                     self.cur_q = self.q_dict[module.text][quiz.text]
@@ -116,7 +148,7 @@ class Brute_Force_Quizzes:
         questions = self.get_questions()
         for question in questions:
             self.get_answer_objects(question)
-            self.select_unchosen_answer(question, last_time)
+            self.select_unchosen_answer(question, last_time, quiz)
         self.submit_quiz()
         self.get_feedback(questions)
         if last_time:
@@ -139,7 +171,7 @@ class Brute_Force_Quizzes:
         for q_el in self.left_browser.get_el(_class="takeQuestionDiv ",
                                              plural=True):
             q = self.left_browser.get_el(tag="legend", start_node=q_el)
-            questions.append(Question(q_el, q.get_attribute("innerText")))
+            questions.append(Question(q_el, q, self.get_img_links(q)))
         return questions
 
     def get_answer_objects(self, question):
@@ -151,9 +183,13 @@ class Brute_Force_Quizzes:
         # Within table, get all els with name of furuness 
         # get text (those are the numbers once you replace the _
         a_button_nums = self.get_button_nums(table)
-        answers = self.get_answers(table)
-        question.answers = [Answer(button_num, a) for button_num, a
-                            in zip(a_button_nums, answers)]
+        answer_texts, img_links = self.get_answers(table)
+        answers = []
+        for i, (a_button_num, answer_text) in enumerate(zip(a_button_nums,
+                                                             answer_texts)):
+            link = img_links[i] if i < len(img_links) else None
+            answers.append(Answer(a_button_num, answer_text, link))
+        question.answers = answers
 
     def get_button_nums(self, table):
         a_button_nums = []
@@ -166,13 +202,17 @@ class Brute_Force_Quizzes:
     def get_answers(self, table):
         # Get all p's
         answers = []
-        for p in self.left_browser.get_el(tag="label",
-                                          start_node=table,
-                                          plural=True):
-            answers.append(p.get_attribute("innerText"))
-        return answers    
+        img_links = []
+        for i, p in enumerate(self.left_browser.get_el(tag="label",
+                                                       start_node=table,
+                                                       plural=True)):
+            answers.append(p.get_attribute("innerHTML"))
+            # UGHHHHHHH STOP IT
+            a_img_links = self.get_img_links(p, double_parent=True)
+            img_links.append(None if len(a_img_links) == 0 else a_img_links[0])
+        return answers, img_links
 
-    def select_unchosen_answer(self, question, last_time: bool):
+    def select_unchosen_answer(self, question, last_time: bool, quiz):
         """Selects last answer every time except for the last time
 
         Done for speed, last answer requires less scrolling
@@ -180,7 +220,7 @@ class Brute_Force_Quizzes:
         """
 
         print(question.text)
-        print([x.text for x in question.answers])
+        print(f"Answer texts {[x.text for x in question.answers]}")
         # Last one to reduce scrolling time
         selected_answer = question.answers[-1].text
         known = True
@@ -189,9 +229,28 @@ class Brute_Force_Quizzes:
                 selected_answer = answer
                 known = False
         if known is True and last_time is True:
-            # wtf r u doing
-            selected_answer = [k for k, v in self.cur_q[question.text].items()
-                               if "CORRECT" in v][0]
+            try:
+                # wtf r u doing
+                selected_answer = [k for k, v in self.cur_q[question.text].items()
+                                   if "CORRECT" in v][0]
+            except IndexError:
+                self.unanswered.append(quiz.text)
+                input(f"Unanswered quizzes: {self.unanswered}")
+            except KeyError:
+                print("key error issue")
+                from pprint import pprint
+                print("printing json")
+                pprint(self.cur_q)
+                print("printing qustion te")
+                print(question.text)
+                print("printing inner text")
+                print(question.inner_text)
+                for a in question.answers:
+                    print("new answer")
+                    print(a.inner_text)
+                    print(a.link)
+                    print(a.text)
+                input("Key Error problems")
         # Shame on you
         question.selected_answer = [a for a in question.answers
                                     if a.text == selected_answer][0]
@@ -405,7 +464,7 @@ class Brute_Force_Quizzes:
         self.focused_browser = self.left_browser
         self.focused_browser.refocus()
 
-    def format(self):
+    def format_markdown(self):
         with open(self.q_dict_path, "r") as f:
             q = json.loads(f.read())
         md_path = self.q_dict_path.replace("json", "md")
@@ -415,12 +474,14 @@ class Brute_Force_Quizzes:
                 for quiz_name, quiz_dict in quizzes.items():
                     f.write("## " + self.strip(quiz_name) + "\n")
                     for question, answers_dict in quiz_dict.items():
-                        f.write("* " + self.strip(question) + "\n")
+                        question_md = self.convert_link_text(question)
+                        f.write("* " + self.strip(question_md) + "\n")
                         for answer, feedback in answers_dict.items():
                             if feedback is None:
                                 f.write("    * No answer for this question???\n")
                             else:
-                                f.write("    * " + self.strip(answer) + "\n")
+                                answer_md = self.convert_link_text(answer)
+                                f.write("    * " + self.strip(answer_md) + "\n")
                                 f.write("        * " + self.strip(feedback) + "\n")
                     f.write("\n")
         # https://stackoverflow.com/a/55484165/8903959
@@ -431,10 +492,95 @@ class Brute_Force_Quizzes:
         check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
                    shell=True)
 
+    def format(self):
+        with open(self.q_dict_path, "r") as f:
+            q = json.loads(f.read())
+        md_path = self.q_dict_path.replace("json", "html")
+        with open(md_path, "w") as f:
+            f.write("""<html>
+                     <head>
+                      <title>3500 quizzes</title>
+                    </head>
+                    <body>""")
+            for module, quizzes in q.items():
+                f.write("<h1>" + self.strip(module) + "</h1>\n")
+                for quiz_name, quiz_dict in quizzes.items():
+                    f.write("<h3>" + self.strip(quiz_name) + "</h3>\n")
+                    f.write("<ol>\n")
+                    for question, answers_dict in quiz_dict.items():
+                        question_md = self.convert_link_text(question)
+                        f.write("<li>" + self.strip(question_md) + "\n")
+                        f.write("<ul>\n")
+                        for answer, feedback in answers_dict.items():
+                            f.write("<li>")
+                            if feedback is None:
+                                f.write("    * No answer for this question???\n")
+                                f.write("</li>\n")
+                            else:
+                                answer_md = self.convert_link_text(answer)
+                                f.write(self.strip(answer_md))
+                                f.write("</li>\n<ul><li>")
+                                f.write(self.strip(feedback))
+                                f.write("</li></ul>\n")
+                        f.write("</ul>\n")
+                    f.write("</ol>\n")
+                    f.write("\n")
+            f.write("""</body>
+                    </html>""")
+        # https://stackoverflow.com/a/55484165/8903959
+        pdf_path = self.q_dict_path.replace("html", "pdf")
+        check_call(f'pandoc {md_path} -o {pdf_path}', shell=True)
+        short_pdf_path = pdf_path.replace(".pdf", "_short.pdf")
+        margins = "geometry:margin=1cm"
+        check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
+                   shell=True)
+
+ 
+    def convert_link_text(self, text):
+        """I know there could be multiple links. I don't care"""
+
+        link_reg = "http.*png"
+        link = re.search(link_reg, text)
+        link_md = self.get_link_md(link)
+        if link is not None:
+            text = text.replace(link, link_md)
+        if text[-4:] == "None":
+            text = text[:-4]
+        return text
+
+    def get_link_md(self, link):
+        return f'<a>![Foo]({link})</a>'
+
+
     def strip(self, string):
         try:
+            return string
             for char in ["\t", "\n", "::"]:
                 string = string.replace(char, "")
             return unidecode(string)
         except AttributeError:
             raise Exception(f"Couldn't format {string}")
+
+    def get_img_links(self, el, double_parent=False):
+        """Gets all image links"""
+
+        links = []
+        try:
+            double_parent_str = ""
+            if double_parent:
+                double_parent_str = ".parentNode.parentNode"
+            javascript_str = (f"var imgs = arguments[0]{double_parent_str}"
+                              ".getElementsByTagName('img');"
+                              "var mylinks = [];"
+                              "for (var j = 0; j < imgs.length; j++) {"
+                              "  mylinks.push(imgs[j].getAttribute('src'));"
+                              "}"
+                              "return mylinks")
+            raw_links = self.focused_browser.browser.execute_script(javascript_str, el)
+            for link in raw_links:
+                if "http" not in link:
+                    link = "http://lms.uconn.edu" + link
+                links.append(link)
+        except:
+            input("img link issue, investigate")
+        return links 
