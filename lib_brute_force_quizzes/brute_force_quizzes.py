@@ -504,6 +504,7 @@ class Brute_Force_Quizzes:
                     <body>""")
             for module, quizzes in q.items():
                 f.write("<h1>" + self.strip(module) + "</h1>\n")
+                print(quizzes)
                 for quiz_name, quiz_dict in quizzes.items():
                     f.write("<h3>" + self.strip(quiz_name) + "</h3>\n")
                     f.write("<ol>\n")
@@ -528,8 +529,8 @@ class Brute_Force_Quizzes:
             f.write("""</body>
                     </html>""")
         # https://stackoverflow.com/a/55484165/8903959
-        pdf_path = self.q_dict_path.replace("html", "pdf")
-        check_call(f'pandoc {md_path} -o {pdf_path}', shell=True)
+        pdf_path = md_path.replace("html", "pdf")
+        check_call(f'pandoc {md_path} -t latex -o {pdf_path}', shell=True)
         short_pdf_path = pdf_path.replace(".pdf", "_short.pdf")
         margins = "geometry:margin=1cm"
         check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
