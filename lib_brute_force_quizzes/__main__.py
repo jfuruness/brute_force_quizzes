@@ -42,7 +42,7 @@ def main():
     if args.brute_force:
         Brute_Force_Quizzes(args.username, args.password).run()
     if args.format:
-        Brute_Force_Quizzes(args.username, args.password).format()
+        Brute_Force_Quizzes(args.username, args.password).format(from_main=True)
 
 if __name__ == "__main__":
     main()

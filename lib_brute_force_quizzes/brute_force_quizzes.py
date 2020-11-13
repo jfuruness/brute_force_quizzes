@@ -90,18 +90,24 @@ class Brute_Force_Quizzes:
         self.focused_browser.browser.maximize_window()
         for mi, module in enumerate(self.modules):
             # Skip unnesseccary mods
-            if mi < 0:
+            if False:
                 continue
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
                 for qi, quiz in enumerate(module.quizzes):
+                    if False:
+                        continue
                     self.q_dict[module.text][quiz.text] =\
                         self.q_dict[module.text].get(quiz.text, {})
                     self.cur_q = self.q_dict[module.text][quiz.text]
                     times_to_take = 25
                     for i in range(times_to_take):
                         self.take_quiz(quiz, i==(times_to_take - 1))
-        self.format(reopen=False)
+        self.format(reopen=False, give_feedback=False, only_correct=True)
+        self.format(reopen=False, give_feedback=True, only_correct=False)
+        self.format(reopen=False, give_feedback=True, only_correct=True)
+        self.format(reopen=False, give_feedback=False, only_correct=False)
+        input("Hey teacher. Leave those kids alone!")
 
     def get_module_quizzes(self):
         for module in self.modules:
@@ -493,7 +499,7 @@ class Brute_Force_Quizzes:
         check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
                    shell=True)
 
-    def format(self, reopen=True):
+    def format(self, reopen=True, give_feedback=False, only_correct=True, from_main=False):
         with open(self.q_dict_path, "r") as f:
             q = json.loads(f.read())
         md_path = self.q_dict_path.replace("json", "html")
@@ -514,16 +520,23 @@ class Brute_Force_Quizzes:
                         f.write("<li>" + self.strip(question_md) + "\n")
                         f.write("<ul>\n")
                         for answer, feedback in answers_dict.items():
-                            f.write("<li>")
+                            
+                            if only_correct and (feedback is None or "WRONG" in feedback):
+                                continue
                             if feedback is None:
+                                f.write("<li>")
                                 f.write("    * No answer for this question???\n")
                                 f.write("</li>\n")
                             else:
+                                f.write("<li>")
                                 answer_md = self.convert_link_text(answer)
                                 f.write(self.strip(answer_md))
-                                f.write("</li>\n<ul><li>")
-                                f.write(self.strip(feedback))
-                                f.write("</li></ul>\n")
+                                if give_feedback:
+                                    f.write("</li>\n<ul><li>")
+                                    f.write(self.strip(feedback))
+                                    f.write("</li></ul>\n")
+                                else:
+                                    f.write("</li>\n")
                         f.write("</ul>\n")
                     f.write("</ol>\n")
                     f.write("\n")
@@ -543,11 +556,16 @@ class Brute_Force_Quizzes:
         self.focused_browser.browser.get("file://" + md_path)
         # https://stackoverflow.com/a/55484165/8903959
         pdf_path = md_path.replace("html", "pdf")
-        check_call(f'pandoc {md_path} -t latex -o {pdf_path}', shell=True)
-        short_pdf_path = pdf_path.replace(".pdf", "_short.pdf")
-        margins = "geometry:margin=1cm"
-        check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
-                   shell=True)
+        if from_main:
+            self.format(reopen=False, give_feedback=True, only_correct=False)
+            self.format(reopen=False, give_feedback=True, only_correct=True)
+            self.format(reopen=False, give_feedback=False, only_correct=False)
+            input("wait")
+        #check_call(f'pandoc {md_path} -t latex -o {pdf_path}', shell=True)
+        #short_pdf_path = pdf_path.replace(".pdf", "_short.pdf")
+        #margins = "geometry:margin=1cm"
+        #check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
+        #           shell=True)
 
  
     def convert_link_text(self, text):
@@ -564,6 +582,8 @@ class Brute_Force_Quizzes:
             text = text.replace(link, link_md)
         if text[-4:] == "None":
             text = text[:-4]
+        if "http" in text:
+            text = text[:text.index("http")]
         return text
 
     def get_link_md(self, link):
