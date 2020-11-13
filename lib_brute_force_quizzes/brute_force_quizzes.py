@@ -90,21 +90,18 @@ class Brute_Force_Quizzes:
         self.focused_browser.browser.maximize_window()
         for mi, module in enumerate(self.modules):
             # Skip unnesseccary mods
-            if mi != 8:
+            if mi < 0:
                 continue
             if len(module.quizzes) > 0:
                 self.q_dict[module.text] = self.q_dict.get(module.text, {})
                 for qi, quiz in enumerate(module.quizzes):
-                    # skip unnessecary mods
-                    if qi != 1:
-                        continue
                     self.q_dict[module.text][quiz.text] =\
                         self.q_dict[module.text].get(quiz.text, {})
                     self.cur_q = self.q_dict[module.text][quiz.text]
-                    times_to_take = 20
+                    times_to_take = 25
                     for i in range(times_to_take):
                         self.take_quiz(quiz, i==(times_to_take - 1))
-        self.format()
+        self.format(reopen=False)
 
     def get_module_quizzes(self):
         for module in self.modules:
@@ -252,8 +249,12 @@ class Brute_Force_Quizzes:
                     print(a.text)
                 input("Key Error problems")
         # Shame on you
-        question.selected_answer = [a for a in question.answers
-                                    if a.text == selected_answer][0]
+        try:
+            question.selected_answer = [a for a in question.answers
+                                        if a.text == selected_answer][0]
+        except IndexError:
+            print(selected_answer)
+            input("index probs")
         self.click_radio(question.selected_answer.num)
 
     def submit_quiz(self):
@@ -492,7 +493,7 @@ class Brute_Force_Quizzes:
         check_call(f'pandoc {md_path} -V {margins} -o {short_pdf_path}',
                    shell=True)
 
-    def format(self):
+    def format(self, reopen=True):
         with open(self.q_dict_path, "r") as f:
             q = json.loads(f.read())
         md_path = self.q_dict_path.replace("json", "html")
@@ -528,6 +529,18 @@ class Brute_Force_Quizzes:
                     f.write("\n")
             f.write("""</body>
                     </html>""")
+        if reopen:
+            self.thirty_five_hundred(True)
+        cookies = self.focused_browser.browser.get_cookies()
+        self.focused_browser.browser.delete_all_cookies()
+        for cookie in cookies:
+            cookie["secure"] = True
+            cookie['sameSite'] = "None"
+        for cookie in cookies:
+            self.focused_browser.browser.add_cookie(cookie)
+        print(md_path)
+        self.left_browser.open_new_tab(url=md_path)
+        self.focused_browser.browser.get("file://" + md_path)
         # https://stackoverflow.com/a/55484165/8903959
         pdf_path = md_path.replace("html", "pdf")
         check_call(f'pandoc {md_path} -t latex -o {pdf_path}', shell=True)
@@ -540,16 +553,21 @@ class Brute_Force_Quizzes:
     def convert_link_text(self, text):
         """I know there could be multiple links. I don't care"""
 
-        link_reg = "http.*png"
+        if "bbcsweb" in text:
+            link_reg = "http.*png"
+        else:
+            link_reg = "http.*"
         link = re.search(link_reg, text)
-        link_md = self.get_link_md(link)
         if link is not None:
+            link = link.group(0)
+            link_md = self.get_link_md(link)
             text = text.replace(link, link_md)
         if text[-4:] == "None":
             text = text[:-4]
         return text
 
     def get_link_md(self, link):
+        return f'<img src="{link.replace(";","%3B")}">'
         return f'<a>![Foo]({link})</a>'
 
 
@@ -580,7 +598,14 @@ class Brute_Force_Quizzes:
             raw_links = self.focused_browser.browser.execute_script(javascript_str, el)
             for link in raw_links:
                 if "http" not in link:
-                    link = "http://lms.uconn.edu" + link
+                    link = "https://lms.uconn.edu" + link
+                    handle = self.focused_browser.browser.current_window_handle
+                    self.focused_browser.open_new_tab()
+                    self.focused_browser.browser.get(link)
+                    link = self.focused_browser.browser.current_url
+                    self.focused_browser.browser.close()
+                    self.focused_browser.browser.switch_to.window(handle)
+                    self.focused_browser.switch_to_iframe()
                 links.append(link)
         except:
             input("img link issue, investigate")
